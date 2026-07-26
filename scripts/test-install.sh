@@ -19,8 +19,13 @@ cat >"$tmp/bin/apk" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >>"$APK_LOG"
 case "${1:-}" in
-	update) [ "${APK_UPDATE_FAILS:-0}" = 1 ] && exit 1 ;;
+	update)
+		[ "${APK_UPDATE_FAILS:-0}" = 1 ] && exit 1
+		[ "${APK_UPDATE_FAILS_WITH_LEGACY:-0}" = 1 ] &&
+			[ -e "$LEGACY_PATH" ] && exit 1
+		;;
 	info) exit "${APK_INSTALLED_RC:-1}" ;;
+	add | upgrade) [ "${APK_TRANSACTION_FAILS:-0}" = 1 ] && exit 1 ;;
 esac
 exit 0
 EOF
@@ -53,11 +58,16 @@ EOF
 # In POSIX sh, assignments in front of a *function* call persist in the shell
 # after it returns, so the failure flag is kept explicit instead.
 APK_UPDATE_FAILS=0
+APK_UPDATE_FAILS_WITH_LEGACY=0
+APK_TRANSACTION_FAILS=0
 
 run() {
 	PATH="$tmp/bin:$PATH" \
 	APK_LOG="$tmp/apk.log" \
 	APK_UPDATE_FAILS="$APK_UPDATE_FAILS" \
+	APK_UPDATE_FAILS_WITH_LEGACY="$APK_UPDATE_FAILS_WITH_LEGACY" \
+	APK_TRANSACTION_FAILS="$APK_TRANSACTION_FAILS" \
+	LEGACY_PATH="$legacy_path" \
 	SERVED_KEY="$root/$FEED_KEY_FILE" \
 	NIKITID_FEED_INSTALL_ROOT="$tmp/root" \
 		sh "$root/install.sh" "$@" >"$tmp/out" 2>&1
@@ -96,9 +106,7 @@ grep -qE '^(add|upgrade)' "$tmp/apk.log" && {
 	exit 1
 }
 
-# A failed index refresh must leave the router exactly as it was: a stale feed
-# entry would break every later apk update, and the superseded list is the one
-# that still works.
+# A failed index refresh must leave the router exactly as it was.
 new_root
 printf '%s\n' "$legacy_url" >"$legacy_path"
 APK_UPDATE_FAILS=1
@@ -117,15 +125,19 @@ APK_UPDATE_FAILS=0
 	exit 1
 }
 [ "$(cat "$legacy_path")" = "$legacy_url" ] || {
-	printf 'a failed bootstrap retired the working feed list\n' >&2
+	printf 'a failed bootstrap did not restore the previous feed list\n' >&2
 	exit 1
 }
 
-# A superseded list is retired only after the shared feed works.
+# A dead superseded feed must be taken out before apk refreshes every
+# repository. The stub makes update fail while that file exists, reproducing
+# the failure mode seen when the old URL returns 404.
 new_root
 printf '%s\n' "$legacy_url" >"$legacy_path"
 cp "$root/$FEED_KEY_FILE" "$tmp/root/etc/apk/keys/ikev2-manager-release.pem"
+APK_UPDATE_FAILS_WITH_LEGACY=1
 run luci-app-ikev2-manager
+APK_UPDATE_FAILS_WITH_LEGACY=0
 [ ! -e "$legacy_path" ] || {
 	printf 'the superseded feed list was kept\n' >&2
 	exit 1
@@ -174,6 +186,37 @@ fi
 APK_UPDATE_FAILS=0
 grep -qx 'luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=' "$world" || {
 	printf 'a failed bootstrap did not restore the world constraint\n' >&2
+	exit 1
+}
+
+# A package transaction failure after a successful refresh restores the
+# previous feed entry and every configuration file changed by the bootstrap.
+new_root
+printf '%s\n' "$legacy_url" >"$legacy_path"
+cat >"$world" <<'WORLD'
+luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=
+WORLD
+APK_TRANSACTION_FAILS=1
+if run luci-app-ikev2-manager; then
+	APK_TRANSACTION_FAILS=0
+	printf 'bootstrap succeeded despite a failed package transaction\n' >&2
+	exit 1
+fi
+APK_TRANSACTION_FAILS=0
+[ ! -e "$key_path" ] || {
+	printf 'a failed package transaction left its trust anchor behind\n' >&2
+	exit 1
+}
+[ ! -e "$list_path" ] || {
+	printf 'a failed package transaction left a stale feed entry behind\n' >&2
+	exit 1
+}
+[ "$(cat "$legacy_path")" = "$legacy_url" ] || {
+	printf 'a failed package transaction did not restore the previous feed\n' >&2
+	exit 1
+}
+grep -qx 'luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=' "$world" || {
+	printf 'a failed package transaction did not restore the world constraint\n' >&2
 	exit 1
 }
 
