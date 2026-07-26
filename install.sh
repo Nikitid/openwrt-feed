@@ -59,8 +59,10 @@ tmp="$(mktemp -d)"
 key_path="$install_root/etc/apk/keys/nikitid-openwrt-release.pem"
 repo_dir="$install_root/etc/apk/repositories.d"
 repo_path="$repo_dir/nikitid-openwrt.list"
+world_path="$install_root/etc/apk/world"
 key_added=0
 repo_changed=0
+world_changed=0
 committed=0
 
 # A failed bootstrap must leave nothing behind. A stale feed entry would make
@@ -78,6 +80,7 @@ cleanup() {
 				rm -f "$repo_path"
 			fi
 		fi
+		[ "$world_changed" -eq 0 ] || cp "$tmp/world.previous" "$world_path"
 	fi
 	rm -rf "$tmp"
 	trap - EXIT HUP INT TERM
@@ -109,6 +112,26 @@ if ! cmp -s "$tmp/feed.list" "$repo_path" 2>/dev/null; then
 	chmod 0644 "$repo_path"
 	repo_changed=1
 fi
+
+# A package installed from a local file leaves an identity constraint in
+# /etc/apk/world that pins it to that exact build. The feed publishes a
+# different build of the same version, so the constraint silently keeps the
+# router on the file it was given and no upgrade ever applies. Release only the
+# constraints for packages named here, and only after the key and feed are in
+# place, so an unrelated pin an operator set is preserved.
+for package in "$@"; do
+	[ -r "$world_path" ] || break
+	grep -q "^${package}><Q" "$world_path" || continue
+	[ "$world_changed" -eq 1 ] || cp "$world_path" "$tmp/world.previous"
+	awk -v package="$package" '
+		index($0, package "><Q") == 1 { print package; next }
+		{ print }
+	' "$world_path" >"${world_path}.new" || fail "unable to rewrite $world_path"
+	chmod 0644 "${world_path}.new"
+	mv "${world_path}.new" "$world_path"
+	world_changed=1
+	printf 'Released the local-install constraint on %s.\n' "$package"
+done
 
 apk update || fail 'package indexes could not be updated'
 
