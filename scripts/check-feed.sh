@@ -63,6 +63,16 @@ for script in install.sh scripts/fetch-members.sh scripts/assemble-feed.sh \
 	sh -n "$root/$script" || fail "shell syntax error: $script"
 done
 
+# Assembly consumes a directory that fetching produces. Losing the fetch step
+# fails the whole build, so the ordering is asserted rather than assumed.
+workflow="$root/.github/workflows/build-feed.yml"
+fetch_line="$(grep -n 'scripts/fetch-members.sh' "$workflow" | head -n1 | cut -d: -f1)"
+assemble_line="$(grep -n 'scripts/assemble-feed.sh' "$workflow" | head -n1 | cut -d: -f1)"
+[ -n "$fetch_line" ] || fail 'build workflow never fetches member release APKs'
+[ -n "$assemble_line" ] || fail 'build workflow never assembles the feed'
+[ "$fetch_line" -lt "$assemble_line" ] ||
+	fail 'build workflow assembles the feed before fetching its members'
+
 "$root/scripts/test-install.sh"
 
 printf 'check-feed OK\n'

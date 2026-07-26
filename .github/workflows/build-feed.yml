@@ -56,9 +56,13 @@ jobs:
           }
           umask 077
           printf '%s\n' "$SIGNING_KEY" > /tmp/openwrt-feed-signing.pem
-      - name: Assemble signed feed
+      # Fetching is separate from assembly so the index build can be exercised
+      # offline against a prepared directory.
+      - name: Fetch member release APKs
         env:
           GH_TOKEN: ${{ github.token }}
+        run: ./scripts/fetch-members.sh
+      - name: Assemble signed feed
         run: |
           . ./feed.env
           FEED_SDK_DIR="$PWD/build/${FEED_SDK_ARCHIVE%.tar.zst}" \
