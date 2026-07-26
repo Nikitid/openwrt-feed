@@ -136,6 +136,47 @@ run luci-app-ikev2-manager
 }
 [ "$(cat "$list_path")" = "$FEED_URL" ]
 
+# A package installed from a local file is pinned to that exact build in
+# /etc/apk/world. Unless the constraint is released, the feed can never upgrade
+# it and the router silently stays on the file it was given.
+new_root
+world="$tmp/root/etc/apk/world"
+cat >"$world" <<'WORLD'
+luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=
+luci-app-overview-manager><Q1MiEeB7sku9/2/VREGukFdpCzV2U=
+busybox
+WORLD
+run luci-app-ikev2-manager
+grep -qx 'luci-app-ikev2-manager' "$world" || {
+	printf 'the local-install constraint was not released\n' >&2
+	exit 1
+}
+grep -qx 'luci-app-overview-manager><Q1MiEeB7sku9/2/VREGukFdpCzV2U=' "$world" || {
+	printf 'a constraint for a package we were not given was touched\n' >&2
+	exit 1
+}
+grep -qx 'busybox' "$world" || {
+	printf 'an unrelated world entry was lost\n' >&2
+	exit 1
+}
+
+# A failed refresh restores the constraints it released.
+new_root
+cat >"$world" <<'WORLD'
+luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=
+WORLD
+APK_UPDATE_FAILS=1
+if run luci-app-ikev2-manager; then
+	APK_UPDATE_FAILS=0
+	printf 'bootstrap succeeded despite a failed index refresh\n' >&2
+	exit 1
+fi
+APK_UPDATE_FAILS=0
+grep -qx 'luci-app-ikev2-manager><Q1hnFhYbfQVZRKz8zs/MXTAMqO7bY=' "$world" || {
+	printf 'a failed bootstrap did not restore the world constraint\n' >&2
+	exit 1
+}
+
 # A list an operator or another project points elsewhere is never touched.
 new_root
 foreign='https://example.invalid/custom/packages.adb'
