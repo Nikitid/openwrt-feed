@@ -60,15 +60,17 @@ key_path="$install_root/etc/apk/keys/nikitid-openwrt-release.pem"
 repo_dir="$install_root/etc/apk/repositories.d"
 repo_path="$repo_dir/nikitid-openwrt.list"
 world_path="$install_root/etc/apk/world"
+legacy_path="$repo_dir/ikev2-manager.list"
 key_added=0
 repo_changed=0
 world_changed=0
+legacy_changed=0
 committed=0
 
-# A failed bootstrap must leave nothing behind. A stale feed entry would make
-# every later `apk update` on this router report an error, and the superseded
-# per-application list is the one that still works, so it is retired only after
-# the new feed has proved itself.
+# A failed bootstrap must leave the feed configuration exactly as it was. A
+# stale new entry would make every later `apk update` report an error, while
+# removing the previous entry before the full transaction succeeds would make
+# a failed migration irreversible.
 cleanup() {
 	rc=$?
 	if [ "$rc" -ne 0 ] && [ "$committed" -eq 0 ]; then
@@ -81,6 +83,8 @@ cleanup() {
 			fi
 		fi
 		[ "$world_changed" -eq 0 ] || cp "$tmp/world.previous" "$world_path"
+		[ "$legacy_changed" -eq 0 ] ||
+			cp "$tmp/legacy.previous" "$legacy_path"
 	fi
 	rm -rf "$tmp"
 	trap - EXIT HUP INT TERM
@@ -113,6 +117,23 @@ if ! cmp -s "$tmp/feed.list" "$repo_path" 2>/dev/null; then
 	repo_changed=1
 fi
 
+# apk refreshes every configured repository. A dead superseded URL therefore
+# prevents the new feed from ever proving itself unless that exact legacy entry
+# is taken out first. Keep it in the transaction backup and restore it on any
+# later failure; a file an operator points elsewhere is left untouched.
+if [ -f "$legacy_path" ]; then
+	case "$(cat "$legacy_path")" in
+		https://raw.githubusercontent.com/Nikitid/ikev2-manager-openwrt/apk-feed/packages.adb | \
+		https://raw.githubusercontent.com/Nikitid/ikev2-openwrt/apk-feed/packages.adb | \
+		https://github.com/Nikitid/ikev2-manager-openwrt/releases/download/*/packages.adb | \
+		https://github.com/Nikitid/ikev2-openwrt/releases/download/*/packages.adb)
+			cp "$legacy_path" "$tmp/legacy.previous"
+			rm -f "$legacy_path"
+			legacy_changed=1
+			;;
+	esac
+fi
+
 # A package installed from a local file leaves an identity constraint in
 # /etc/apk/world that pins it to that exact build. The feed publishes a
 # different build of the same version, so the constraint silently keeps the
@@ -135,31 +156,6 @@ done
 
 apk update || fail 'package indexes could not be updated'
 
-# Only once the shared feed is known to work: earlier releases hosted it on a
-# branch of an application repository and named the list after that
-# application. Retire such a list only when it still holds one of those URLs,
-# so a list an operator points elsewhere is preserved.
-for legacy in "$repo_dir/ikev2-manager.list"; do
-	[ -f "$legacy" ] || continue
-	case "$(cat "$legacy")" in
-		https://raw.githubusercontent.com/Nikitid/ikev2-manager-openwrt/apk-feed/packages.adb | \
-		https://raw.githubusercontent.com/Nikitid/ikev2-openwrt/apk-feed/packages.adb | \
-		https://github.com/Nikitid/ikev2-manager-openwrt/releases/download/*/packages.adb | \
-		https://github.com/Nikitid/ikev2-openwrt/releases/download/*/packages.adb)
-			rm -f "$legacy"
-			printf 'Retired the previous feed list: %s\n' "$legacy"
-			;;
-	esac
-done
-
-# The publisher key used to be installed under an application-specific name.
-# The material is identical, so drop the duplicate trust anchor once the
-# generic name is in place.
-legacy_key="$install_root/etc/apk/keys/ikev2-manager-release.pem"
-if [ -f "$legacy_key" ] && cmp -s "$legacy_key" "$key_path"; then
-	rm -f "$legacy_key"
-fi
-
 for package in "$@"; do
 	if apk info --installed "$package" >/dev/null 2>&1; then
 		apk upgrade --simulate "$package" ||
@@ -172,6 +168,16 @@ for package in "$@"; do
 	fi
 done
 
+# The publisher key used to be installed under an application-specific name.
+# The material is identical, so drop the duplicate trust anchor only after the
+# feed and every requested package transaction have succeeded.
+legacy_key="$install_root/etc/apk/keys/ikev2-manager-release.pem"
+if [ -f "$legacy_key" ] && cmp -s "$legacy_key" "$key_path"; then
+	rm -f "$legacy_key"
+fi
+
 committed=1
+[ "$legacy_changed" -eq 0 ] ||
+	printf 'Retired the previous feed list: %s\n' "$legacy_path"
 printf '\nNikitid OpenWrt feed is configured.\n'
 [ "$#" -gt 0 ] || printf 'Install an application with: apk add <package>\n'
