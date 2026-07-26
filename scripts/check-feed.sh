@@ -59,8 +59,10 @@ done <"$key_list"
 rm -f "$key_list"
 
 for script in install.sh scripts/fetch-members.sh scripts/assemble-feed.sh \
-		scripts/verify-feed.sh scripts/check-feed.sh; do
+		scripts/verify-feed.sh scripts/check-feed.sh scripts/test-install.sh; do
 	sh -n "$root/$script" || fail "shell syntax error: $script"
 done
+
+"$root/scripts/test-install.sh"
 
 printf 'check-feed OK\n'

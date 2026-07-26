@@ -60,12 +60,24 @@ key_path="$install_root/etc/apk/keys/nikitid-openwrt-release.pem"
 repo_dir="$install_root/etc/apk/repositories.d"
 repo_path="$repo_dir/nikitid-openwrt.list"
 key_added=0
+repo_changed=0
 committed=0
 
+# A failed bootstrap must leave nothing behind. A stale feed entry would make
+# every later `apk update` on this router report an error, and the superseded
+# per-application list is the one that still works, so it is retired only after
+# the new feed has proved itself.
 cleanup() {
 	rc=$?
-	if [ "$rc" -ne 0 ] && [ "$committed" -eq 0 ] && [ "$key_added" -eq 1 ]; then
-		rm -f "$key_path"
+	if [ "$rc" -ne 0 ] && [ "$committed" -eq 0 ]; then
+		[ "$key_added" -eq 0 ] || rm -f "$key_path"
+		if [ "$repo_changed" -eq 1 ]; then
+			if [ -f "$tmp/repository.previous" ]; then
+				cp "$tmp/repository.previous" "$repo_path"
+			else
+				rm -f "$repo_path"
+			fi
+		fi
 	fi
 	rm -rf "$tmp"
 	trap - EXIT HUP INT TERM
@@ -92,13 +104,18 @@ fi
 mkdir -p "$repo_dir"
 printf '%s\n' "$FEED_URL" >"$tmp/feed.list"
 if ! cmp -s "$tmp/feed.list" "$repo_path" 2>/dev/null; then
+	[ ! -f "$repo_path" ] || cp "$repo_path" "$tmp/repository.previous"
 	cp "$tmp/feed.list" "$repo_path"
 	chmod 0644 "$repo_path"
+	repo_changed=1
 fi
 
-# Earlier releases hosted the feed on a branch of an application repository and
-# named the list after that application. Retire such a list only when it still
-# holds one of those URLs, so a list an operator points elsewhere is preserved.
+apk update || fail 'package indexes could not be updated'
+
+# Only once the shared feed is known to work: earlier releases hosted it on a
+# branch of an application repository and named the list after that
+# application. Retire such a list only when it still holds one of those URLs,
+# so a list an operator points elsewhere is preserved.
 for legacy in "$repo_dir/ikev2-manager.list"; do
 	[ -f "$legacy" ] || continue
 	case "$(cat "$legacy")" in
@@ -119,8 +136,6 @@ legacy_key="$install_root/etc/apk/keys/ikev2-manager-release.pem"
 if [ -f "$legacy_key" ] && cmp -s "$legacy_key" "$key_path"; then
 	rm -f "$legacy_key"
 fi
-
-apk update || fail 'package indexes could not be updated'
 
 for package in "$@"; do
 	if apk info --installed "$package" >/dev/null 2>&1; then
