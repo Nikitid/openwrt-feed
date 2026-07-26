@@ -4,3 +4,8 @@ dist/
 *.key
 *-private.pem
 signing/
+
+# Site-specific runbooks: router names, addresses and key paths must not
+# be published.
+docs/private/
+*.local.md

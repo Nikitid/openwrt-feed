@@ -35,7 +35,9 @@ apk upgrade luci-app-ikev2-manager
 | Overview Manager | [luci-layout](https://github.com/Nikitid/luci-layout) | `luci-app-overview-manager` |
 | MTProto Monitor | [luci-mtproto](https://github.com/Nikitid/luci-mtproto) | `luci-app-mtproto-monitor` |
 
-Members are listed in [`feed.env`](feed.env); what a member repository must do is described in [Member integration](docs/MEMBER_INTEGRATION.md). A member without a published
+Members are listed in [`feed.env`](feed.env). Day-to-day work is described in
+[Operations](docs/OPERATIONS.md); what a member repository must implement is in
+[Member integration](docs/MEMBER_INTEGRATION.md). A member without a published
 release is skipped, so an application can be listed before it ships and a
 stalled one never blocks the others.
 
