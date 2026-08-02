@@ -1,6 +1,6 @@
 93dd691ada4ddff7a7474f99666e3e3358fdb53800032bf0ec9ab9b193d0066b  luci-app-ikev2-manager-1.2.6.apk
 21b489e91421aadadca6aa0b14c8b307181844533470527a52b9689569db143b  luci-app-mtproto-monitor-0.2.0.apk
 394d3250a51adb478ec3eaf1dd0e636e98d6d434443c96dd09827c7e672d88c9  luci-app-overview-manager-0.1.0.apk
-28f6721c57a5129aa3d7a9ec3e561c44e4430b3bf445a03e41a1fa43e8123340  packages.adb
+7c17208fd77bc5b1dea9555f0d67efbbd72a0a06fa4dcf1a8bb88e6dcf559833  packages.adb
 f27474d9261f1084350cf4ba34ecdff29e533769c36483d8dd85566e30a6a703  nikitid-openwrt-release.pem
 fd8eeb485d07cd94d51e1faa477b4764e923efdde856fdc152efb27ecfad2677  install.sh
