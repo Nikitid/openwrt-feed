@@ -34,6 +34,7 @@ apk upgrade luci-app-ikev2-manager
 | IKEv2 Manager | [ikev2-openwrt](https://github.com/Nikitid/ikev2-openwrt) | `luci-app-ikev2-manager` |
 | Overview Manager | [luci-layout](https://github.com/Nikitid/luci-layout) | `luci-app-overview-manager` |
 | MTProto Monitor | [luci-mtproto](https://github.com/Nikitid/luci-mtproto) | `luci-app-mtproto-monitor` |
+| IKEv2 Site Link | [ikev2-site-link-openwrt](https://github.com/Nikitid/ikev2-site-link-openwrt) | `luci-app-ikev2-site-link` |
 
 Members are listed in [`feed.env`](feed.env). Day-to-day work is described in
 [Operations](docs/OPERATIONS.md); what a member repository must implement is in
