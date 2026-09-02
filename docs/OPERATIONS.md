@@ -38,7 +38,6 @@ to every router without adding isolation.
 1. Change the code.
 2. Raise the version in `release.env`, and in the OpenWrt `Makefile` if the
    project keeps literals there. The version-sync check fails on drift.
-3. Record the change in `CHANGELOG.md`.
 4. Commit, push, and tag. The tag must match the version exactly: version
    `1.2.3` means tag `v1.2.3`, which the release workflow verifies.
 5. Rebuild the index once the release is published:
