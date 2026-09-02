@@ -1,5 +1,12 @@
 # Repository Guidelines
 
+## Start of Work
+
+- Read `docs/MAP.md` to find the files a task touches, and the trap it records
+  about releases never reaching the routers on their own.
+- Run `git status -sb` and preserve unrelated changes.
+
+
 ## Scope
 
 This repository publishes the shared signed APK feed for the Nikitid OpenWrt
