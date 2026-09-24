@@ -74,5 +74,6 @@ assemble_line="$(grep -n 'scripts/assemble-feed.sh' "$workflow" | head -n1 | cut
 	fail 'build workflow assembles the feed before fetching its members'
 
 "$root/scripts/test-install.sh"
+"$root/scripts/check-readme.sh"
 
 printf 'check-feed OK\n'

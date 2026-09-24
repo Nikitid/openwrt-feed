@@ -1,15 +1,28 @@
-# APK-фид Nikitid для OpenWrt
+# Nikitid APK feed for OpenWrt
 
-[English](README.en.md)
+[Русский](README.ru.md)
 
-Подписанный индекс пакетов для приложений LuCI от Nikitid: OpenWrt `25.12.x`,
-цель `mediatek/filogic`, архитектура `aarch64_cortex-a53`.
+[![CI](https://github.com/Nikitid/openwrt-feed/actions/workflows/build-feed.yml/badge.svg)](https://github.com/Nikitid/openwrt-feed/actions/workflows/build-feed.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Один издательский ключ подписывает и каждый пакет, и сам индекс. apk не
-привязывает ключ ни к пакету, ни к репозиторию, поэтому роутеру нужен ровно
-один якорь доверия и одна запись фида на все приложения.
+Signed package index for the Nikitid LuCI applications. One publisher key signs
+every member package and the index. apk binds a key to neither a package nor a
+repository, so a router needs exactly one trust anchor and one feed entry for
+all applications.
 
-## Установка
+## Features
+
+- one feed entry and one key for every Nikitid application;
+- the installer checks the publisher key against a pinned checksum;
+- only the named packages are installed and upgraded, never the whole router;
+- the index rebuilds itself whenever any application publishes a release.
+
+## Requirements
+
+- OpenWrt `25.12.x` with `apk`;
+- target `mediatek/filogic`, architecture `aarch64_cortex-a53`.
+
+## Installation
 
 ```sh
 wget -O /tmp/nikitid-feed.sh \
@@ -17,83 +30,57 @@ wget -O /tmp/nikitid-feed.sh \
 sh /tmp/nikitid-feed.sh luci-app-ikev2-manager
 ```
 
-Установщик сверяет издательский ключ с закреплённой контрольной суммой,
-записывает `/etc/apk/repositories.d/nikitid-openwrt.list`, убирает старый
-однопакетный список фида и ставит только те пакеты, которые названы в
-аргументах. Запуск без аргументов настраивает только сам фид.
+The installer verifies the publisher key against a pinned checksum, writes
+`/etc/apk/repositories.d/nikitid-openwrt.list`, retires the per-application feed
+list used before this repository existed, and installs only the packages named
+on its command line. Running it without arguments configures the feed alone.
 
-Обновление всегда с именем пакета — роутер целиком не обновляется:
+Updates are always scoped to a package:
 
 ```sh
 apk update
 apk upgrade luci-app-ikev2-manager
 ```
 
-## Участники
+## Members
 
-| Приложение | Репозиторий | Пакет |
-| --- | --- | --- |
-| IKEv2 Manager | [ikev2-openwrt](https://github.com/Nikitid/ikev2-openwrt) | `luci-app-ikev2-manager` |
-| Overview Manager | [luci-layout](https://github.com/Nikitid/luci-layout) | `luci-app-overview-manager` |
-| MTProto Monitor | [luci-mtproto](https://github.com/Nikitid/luci-mtproto) | `luci-app-mtproto-monitor` |
-| IKEv2 Site Link | [ikev2-site-link-openwrt](https://github.com/Nikitid/ikev2-site-link-openwrt) | `luci-app-ikev2-site-link` |
-| Wi-Fi QR | [luci-wrqr](https://github.com/Nikitid/luci-wrqr) | `luci-app-wrqr` |
+| Application | Package and repository |
+| --- | --- |
+| IKEv2 Manager | [`luci-app-ikev2-manager`](https://github.com/Nikitid/luci-app-ikev2-manager) |
+| Overview Manager | [`luci-app-overview-manager`](https://github.com/Nikitid/luci-app-overview-manager) |
+| MTProto Monitor | [`luci-app-mtproto-monitor`](https://github.com/Nikitid/luci-app-mtproto-monitor) |
+| IKEv2 Site Link | [`luci-app-ikev2-site-link`](https://github.com/Nikitid/luci-app-ikev2-site-link) |
+| Wi-Fi QR | [`luci-app-wrqr`](https://github.com/Nikitid/luci-app-wrqr) |
 
-Список участников — в [`feed.env`](feed.env). Участник без опубликованного
-релиза пропускается: приложение можно внести в список до первого выпуска, и
-застрявшее не блокирует остальные.
+Members are listed in [`feed.env`](feed.env). Day-to-day work is described in
+[Operations](docs/OPERATIONS.md); what a member repository must implement is in
+[Member integration](docs/MEMBER_INTEGRATION.md). A member without a published
+release is skipped, so an application can be listed before it ships and a
+stalled one never blocks the others.
 
-## Как это собирается
+## Development
 
-Репозитории приложений сюда не пишут. Каждый публикует свой релиз на GitHub с
-APK, уже подписанным издательским ключом. Этот репозиторий скачивает текущий
-релиз каждого участника, проверяет подписи, собирает по ним `packages.adb`,
-подписывает индекс и публикует результат в ветку `feed`.
-
-```text
-репозиторий приложения -> релиз GitHub (подписанный .apk)
-                                        |
-                           openwrt-feed -> ветка feed -> роутер
+```sh
+./scripts/check-feed.sh
 ```
 
-Сборка запускается по `repository_dispatch` (тип `member-release`), вручную и
-раз в сутки как страховка, чтобы пропущенное уведомление не оставило индекс
-устаревшим.
+How the feed is built, its layout and keys: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-## Устройство
+## Documentation
 
-- `main` — исходники: список участников, публичный ключ, скрипты сборки и
-  проверок.
-- `feed` — опубликованное: `packages.adb`, APK участников, публичный ключ,
-  `install.sh` и `SHA256SUMS`.
+- [Repository map](docs/MAP.md) - where things live
+- [Operations](docs/OPERATIONS.md)
+- [Becoming a member](docs/MEMBER_INTEGRATION.md)
+- [Development](docs/DEVELOPMENT.md) - how the feed is built, its layout and keys
 
-Отдельный репозиторий для фида — осознанное решение. Раньше он жил веткой
-одного из приложений, и переименование того приложения двигало URL, записанный
-в `/etc/apk/repositories.d` на каждом установленном роутере.
+## Support
 
-## Ключи
+Questions and bug reports go to
+[Issues](https://github.com/Nikitid/openwrt-feed/issues/new/choose): pick the form that
+fits. Report a vulnerability privately through
+[a security advisory](https://github.com/Nikitid/openwrt-feed/security/advisories/new).
+English or Russian is fine.
 
-`keys/nikitid-openwrt-release.pem` — общий публичный ключ издателя.
-
-```text
-f27474d9261f1084350cf4ba34ecdff29e533769c36483d8dd85566e30a6a703
-```
-
-Приватная половина не хранится ни в одном репозитории. Сборки читают её из
-секрета `OPENWRT_APK_SIGNING_KEY` в GitHub Actions, одинакового здесь и в
-каждом репозитории-участнике.
-
-Потеря приватного ключа потребует загрузочной ротации на каждом установленном
-роутере. Утечка позволит опубликовать доверенный пакет от имени любого
-приложения фида.
-
-## Документация
-
-- [Карта репозитория](docs/MAP.md) — где что лежит
-- [Эксплуатация](docs/OPERATIONS.md)
-- [Как стать участником](docs/MEMBER_INTEGRATION.md)
-- [Правила работы](AGENTS.md)
-
-## Лицензия
+## License
 
 [MIT](LICENSE).

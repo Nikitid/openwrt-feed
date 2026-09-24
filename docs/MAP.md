@@ -39,8 +39,8 @@ this step is invisible to `apk update`. Several already were.
 
 | file | for |
 | --- | --- |
-| `AGENTS.md` | the rules of working here |
 | `docs/MAP.md` | this file |
+| `docs/DEVELOPMENT.md` | how the feed is built, its layout and keys |
 | `docs/MEMBER_INTEGRATION.md` | what a member repository must provide |
 | `docs/OPERATIONS.md` | running and recovering the feed |
 | `docs/private/` | site-specific notes, untracked |
