@@ -14,12 +14,14 @@ publisher private key  keeps a copy as an Actions     keeps the publisher
 (never committed)      secret                         public key
 ```
 
-Four repositories: three applications and this feed.
+Six repositories: five applications and this feed.
 
 ```text
-ikev2-openwrt  ─┐
-luci-layout    ─┼─→  openwrt-feed  ─→  router
-luci-mtproto   ─┘
+luci-app-ikev2-manager     -+
+luci-app-ikev2-site-link   -+
+luci-app-overview-manager  -+->  openwrt-feed  ->  router
+luci-app-mtproto-monitor   -+
+luci-app-wrqr              -+
 ```
 
 Applications never write here. Each publishes its own signed APK as a GitHub

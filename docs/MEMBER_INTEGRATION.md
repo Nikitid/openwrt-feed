@@ -1,6 +1,6 @@
 # Joining the shared feed
 
-What a member application repository must do. `Nikitid/ikev2-openwrt` is the
+What a member application repository must do. `Nikitid/luci-app-ikev2-manager` is the
 reference implementation.
 
 ## Contract
