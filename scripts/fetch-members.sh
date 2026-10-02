@@ -66,5 +66,33 @@ for member in $FEED_MEMBERS; do
 	note "fetched $(basename "$candidate") from $repository"
 done
 
+# Extras are this repository's own releases. One not yet published is skipped
+# like a member without a release: the index then simply lacks it.
+for tag in ${FEED_EXTRAS:-}; do
+	case "$tag" in
+		'' | *[!A-Za-z0-9+_.-]*) fail "invalid extra release: $tag" ;;
+	esac
+	staging="$output/.staging"
+	rm -rf "$staging"
+	mkdir -p "$staging"
+	if ! gh release download "$tag" --repo "$FEED_REPOSITORY" \
+		--pattern '*.apk' --dir "$staging" >/dev/null 2>&1; then
+		note "extra release not published yet, skipping: $tag"
+		rm -rf "$staging"
+		continue
+	fi
+	count=0
+	for entry in "$staging"/*.apk; do
+		[ -f "$entry" ] || continue
+		[ ! -e "$output/$(basename "$entry")" ] ||
+			fail "$(basename "$entry") from $tag is also a member package"
+		mv "$entry" "$output/"
+		count=$((count + 1))
+	done
+	rm -rf "$staging"
+	[ "$count" -gt 0 ] || fail "extra release $tag has no APK"
+	note "fetched $count packages from $tag"
+done
+
 [ "$found" -gt 0 ] || fail 'no member application has a published release'
 printf '%s\n' "$output"

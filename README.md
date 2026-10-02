@@ -15,7 +15,9 @@ all applications.
 - one feed entry and one key for every Nikitid application;
 - the installer checks the publisher key against a pinned checksum;
 - only the named packages are installed and upgraded, never the whole router;
-- the index rebuilds itself whenever any application publishes a release.
+- the index rebuilds itself whenever any application publishes a release;
+- strongSwan 6.0.7 for OpenWrt 25.12, whose release feed ships 6.0.3 without
+  the fix for CVE-2026-47895, until the release feed carries a fixed version.
 
 ## Requirements
 

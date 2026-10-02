@@ -2,14 +2,17 @@
 
 The shared signed APK feed. It builds no application of its own: it collects
 released assets from the member repositories and publishes one signed index
-every router installs from.
+every router installs from. The one package it builds is an upstream one,
+strongSwan, while the release feed lacks a security fix.
 
 ## The shape of it
 
 | file | owns |
 | --- | --- |
 | `install.sh` | what a router runs once: trust anchor and feed entry |
-| `scripts/fetch-members.sh` | pulls each member's released APK |
+| `scripts/fetch-members.sh` | pulls each member's released APK, and the packages of the releases in `FEED_EXTRAS` |
+| `scripts/build-strongswan.sh` | strongSwan 6.0.7 for the release, while its feed lacks the CVE-2026-47895 fix |
+| `.github/workflows/build-strongswan.yml` | builds it by hand, publishes it as a release here, rebuilds the feed |
 | `scripts/assemble-feed.sh` | builds and signs the index |
 | `scripts/verify-feed.sh` | proves the published index is installable |
 | `scripts/check-feed.sh` | validates the member list before a build |

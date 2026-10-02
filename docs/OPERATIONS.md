@@ -124,6 +124,25 @@ grep '><Q' /etc/apk/world
 A name followed by `><Q...` is pinned. Running the shared installer with that
 package name releases the constraint.
 
+## Updating strongSwan on a router
+
+strongSwan's base package, `strongswan-charon`, `strongswan-swanctl` and every
+`strongswan-mod-*` share one build. Upgrade the installed set together, by
+name, never one of them alone:
+
+```sh
+apk update
+apk upgrade $(apk info | grep '^strongswan')
+```
+
+The upgrade restarts charon when the package replaces the stock
+`/etc/swanctl/swanctl.conf`, which 6.0.3 to 6.0.7 does; every tunnel drops and
+reconnects within seconds. When the file was edited the package keeps it, and
+the old daemon runs until the next restart or reboot; IKEv2 Manager's readiness
+check reports that as `strongswan_running=warn`. IKEv2 Manager releases whose
+session monitor does not run in a session of its own reboot the router whenever
+charon restarts: update IKEv2 Manager first.
+
 ## Notifying the feed automatically
 
 A release can tell this repository to rebuild immediately instead of waiting

@@ -1,0 +1,83 @@
+name: Build strongSwan
+
+# strongSwan 6.0.7 for the release this feed targets, while that release ships
+# 6.0.3 without the fix for CVE-2026-47895. Run by hand: the packages are
+# published as a release of this repository, named in FEED_EXTRAS, and the
+# feed is rebuilt to index them.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: build-strongswan
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Validate feed sources
+        run: ./scripts/check-feed.sh
+      - name: Install OpenWrt SDK dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential file gawk gettext libncurses-dev libssl-dev \
+            rsync unzip zlib1g-dev zstd python3-setuptools
+      - name: Download verified OpenWrt SDK
+        run: |
+          . ./feed.env
+          mkdir -p build
+          curl --fail --location --silent --show-error \
+            "https://downloads.openwrt.org/releases/${FEED_OPENWRT_VERSION}/targets/${FEED_OPENWRT_TARGET}/${FEED_SDK_ARCHIVE}" \
+            --output "build/${FEED_SDK_ARCHIVE}"
+          printf '%s  %s\n' \
+            "$FEED_SDK_SHA256" "build/${FEED_SDK_ARCHIVE}" | sha256sum --check
+          tar --use-compress-program=unzstd -xf \
+            "build/${FEED_SDK_ARCHIVE}" -C build
+      - name: Prepare publisher signing key
+        env:
+          SIGNING_KEY: ${{ secrets.OPENWRT_APK_SIGNING_KEY }}
+        run: |
+          test -n "$SIGNING_KEY" || {
+            echo 'OPENWRT_APK_SIGNING_KEY is not configured' >&2
+            exit 1
+          }
+          umask 077
+          printf '%s\n' "$SIGNING_KEY" > /tmp/openwrt-feed-signing.pem
+      - name: Build signed packages
+        run: |
+          . ./feed.env
+          FEED_SDK_DIR="$PWD/build/${FEED_SDK_ARCHIVE%.tar.zst}" \
+          FEED_SIGNING_KEY=/tmp/openwrt-feed-signing.pem \
+            ./scripts/build-strongswan.sh dist/extras
+      - name: Remove publisher signing key
+        if: ${{ always() }}
+        run: rm -f /tmp/openwrt-feed-signing.pem
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . ./feed.env
+          set -- $FEED_EXTRAS
+          tag=''
+          for candidate; do
+            case "$candidate" in strongswan-*) tag="$candidate" ;; esac
+          done
+          test -n "$tag" || { echo 'FEED_EXTRAS names no strongswan release' >&2; exit 1; }
+          test -e "dist/extras/${tag}.apk" || {
+            echo "the build does not match $tag" >&2
+            exit 1
+          }
+          gh release view "$tag" >/dev/null 2>&1 ||
+            gh release create "$tag" --title "$tag" \
+              --notes "strongSwan built for OpenWrt ${FEED_OPENWRT_VERSION} until its release feed carries the fix for CVE-2026-47895."
+          gh release upload "$tag" dist/extras/*.apk dist/extras/SHA256SUMS --clobber
+      - name: Rebuild the feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run "Build feed"

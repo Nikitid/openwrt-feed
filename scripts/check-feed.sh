@@ -35,6 +35,11 @@ for member in $FEED_MEMBERS; do
 	[ "$repository" != "$package" ] || fail "malformed member entry: $member"
 done
 
+for tag in ${FEED_EXTRAS:-}; do
+	case "$tag" in
+		'' | *[!A-Za-z0-9+_.-]*) fail "invalid extra release: $tag" ;;
+	esac
+done
 # The bootstrap script is fetched by routers before any signature can be
 # checked, so its pinned trust anchor must match the tracked key.
 grep -Fq "FEED_TRUST_SHA256=$FEED_TRUST_SHA256" "$root/install.sh" ||
