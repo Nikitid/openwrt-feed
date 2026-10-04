@@ -36,11 +36,10 @@ changes only the upstream version, its source hash and the three patches,
 fetched refreshed for 6.0.7 from a pinned commit of the development branch and
 checked by hash. The development branch's recipe itself is not used: it puts
 `eap-mschapv2` behind an "insecure" option and rewrites the init script's UCI
-schema. The packages built are the set IKEv2 Manager installs and what they
-pull in: every package of the recipe would drag in bash and a host Python, and
-other plugins need libraries from the packages feed. A router with more
-strongSwan plugins keeps 6.0.3 for those, which IKEv2 Manager's readiness
-check reports as a mixed set.
+schema. Every package of the recipe is built, as the release feed builds it,
+so a router with more strongSwan plugins than IKEv2 Manager installs upgrades
+them with the rest. The build takes about half an hour: the libraries the
+plugins need are compiled first.
 
 The release is `r0`, below the `r1` the release feed would publish for the same
 version, so an official build replaces it as soon as one appears. Then remove

@@ -14,11 +14,10 @@
 # The release is r0, below any r1 the release feed publishes for the same
 # version, so an official build replaces this one as soon as it appears.
 #
-# The packages are the set IKEv2 Manager installs, which is what routers
-# using this feed run, and what they pull in. Every package of the recipe
-# drags in bash and a host Python as well, and other plugins need libraries
-# from the packages feed; a router with more strongSwan plugins than this keeps
-# 6.0.3 for them, which IKEv2 Manager's readiness check reports.
+# Every package of the recipe is built, as the release feed builds it: the
+# SDK selects them all by default. A router with more strongSwan plugins than
+# IKEv2 Manager installs then upgrades those with the rest, instead of keeping
+# 6.0.3 plugins beside a 6.0.7 daemon.
 #
 #   FEED_SDK_DIR=/path/to/sdk FEED_SIGNING_KEY=/path/to/key.pem \
 #     ./scripts/build-strongswan.sh [output directory]
@@ -38,6 +37,10 @@ root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 sdk="${FEED_SDK_DIR:-}"
 signing_key="${FEED_SIGNING_KEY:-}"
 output="${1:-$root/dist/extras}"
+# A relative directory is the caller's. The build changes into the SDK, and
+# the packages of a relative one ended up inside it, where the workflow's next
+# step did not look.
+case "$output" in /*) ;; *) output="$PWD/$output" ;; esac
 public_key="$root/$FEED_KEY_FILE"
 
 version=6.0.7
@@ -115,10 +118,9 @@ grep -Fxq "PKG_VERSION:=$version" "$recipe/Makefile" &&
 ./scripts/feeds install -p base ncurses >/dev/null
 [ -e package/feeds/base/ncurses ] || fail 'unable to register the host ncurses'
 make -C "$sdk" defconfig >/dev/null
-# Only the set above and what it needs. The SDK selects every package by
-# default, and a selection a cached SDK kept from another run would stay; both
-# go. It still packages every kernel module, a fixed default of its own,
-# whenever the configuration changed.
+# The SDK selects every package by default, so the whole recipe is built.
+# The set IKEv2 Manager installs is named as well, so that an SDK configured
+# otherwise by an earlier run still builds what the routers of this feed run.
 sed -i -e '/^CONFIG_PACKAGE_/d' -e '/^# CONFIG_PACKAGE_/d' "$sdk/.config"
 for package in $built_packages; do
 	printf 'CONFIG_PACKAGE_%s=m\n' "$package"
