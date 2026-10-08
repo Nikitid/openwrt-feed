@@ -32,11 +32,20 @@ jobs:
         run: |
           . ./feed.env
           mkdir -p build
-          curl --fail --location --silent --show-error \
-            "https://downloads.openwrt.org/releases/${FEED_OPENWRT_VERSION}/targets/${FEED_OPENWRT_TARGET}/${FEED_SDK_ARCHIVE}" \
-            --output "build/${FEED_SDK_ARCHIVE}"
-          printf '%s  %s\n' \
-            "$FEED_SDK_SHA256" "build/${FEED_SDK_ARCHIVE}" | sha256sum --check
+          # The archive is accepted by its checksum, not by where it came
+          # from, so a mirror serves as well as the origin when the origin
+          # cuts large downloads short.
+          fetched=0
+          for mirror in https://downloads.openwrt.org https://ftp.halifax.rwth-aachen.de/openwrt https://mirrors.tuna.tsinghua.edu.cn/openwrt; do
+            if curl --fail --location --silent --show-error --retry 2 --max-time 900 \
+              "$mirror/releases/${FEED_OPENWRT_VERSION}/targets/${FEED_OPENWRT_TARGET}/${FEED_SDK_ARCHIVE}" \
+              --output "build/${FEED_SDK_ARCHIVE}" &&
+              printf '%s  %s\n' "$FEED_SDK_SHA256" "build/${FEED_SDK_ARCHIVE}" | sha256sum --check; then
+              fetched=1
+              break
+            fi
+          done
+          [ "$fetched" = 1 ]
           tar --use-compress-program=unzstd -xf \
             "build/${FEED_SDK_ARCHIVE}" -C build
       - name: Prepare publisher signing key
