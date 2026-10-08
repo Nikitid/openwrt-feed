@@ -34,10 +34,10 @@ jobs:
           mkdir -p build
           # The archive is accepted by its checksum, not by where it came
           # from, so a mirror serves as well as the origin when the origin
-          # cuts large downloads short.
+          # cuts large downloads short or slows them to a crawl.
           fetched=0
           for mirror in https://downloads.openwrt.org https://ftp.halifax.rwth-aachen.de/openwrt https://mirrors.tuna.tsinghua.edu.cn/openwrt; do
-            if curl --fail --location --silent --show-error --retry 2 --max-time 900 \
+            if curl --fail --location --silent --show-error --connect-timeout 20 --speed-limit 200000 --speed-time 30 --max-time 900 \
               "$mirror/releases/${FEED_OPENWRT_VERSION}/targets/${FEED_OPENWRT_TARGET}/${FEED_SDK_ARCHIVE}" \
               --output "build/${FEED_SDK_ARCHIVE}" &&
               printf '%s  %s\n' "$FEED_SDK_SHA256" "build/${FEED_SDK_ARCHIVE}" | sha256sum --check; then
