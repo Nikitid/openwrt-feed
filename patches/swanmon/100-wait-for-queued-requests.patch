@@ -1,0 +1,14 @@
+--- a/query.c
++++ b/query.c
+@@ -102,7 +102,10 @@
+ {
+ 	int err, ret;
+ 
+-	while (dd->pending && dd->pfd.fd != -1) {
++	/* A streamed command queues the unregistration of its event once the
++	 * command is answered; leaving before that is answered makes charon
++	 * write to a closed socket. */
++	while ((dd->pending || davici_queue_len(dd->c)) && dd->pfd.fd != -1) {
+ 		ret = poll(&dd->pfd, 1, -1);
+ 		if (ret < 0)
+ 			return -errno;

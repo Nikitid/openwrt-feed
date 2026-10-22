@@ -1,8 +1,8 @@
-name: Build strongSwan
+name: Build swanmon
 
-# strongSwan 6.0.7 for the release this feed targets, while that release ships
-# 6.0.3 without the fix for CVE-2026-47895. Run by hand: the packages are
-# published as a release of this repository, named in FEED_EXTRAS, and the
+# swanmon 0.1-r3 for the release this feed targets, while that release ships a
+# swanmon that leaves before charon answers its event unregistration. Run by
+# hand: the package is published as a release of this repository, named in FEED_EXTRAS, and the
 # feed is rebuilt to index them.
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: build-strongswan
+  group: build-swanmon
   cancel-in-progress: false
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
           . ./feed.env
           FEED_SDK_DIR="$PWD/build/${FEED_SDK_ARCHIVE%.tar.zst}" \
           FEED_SIGNING_KEY=/tmp/openwrt-feed-signing.pem \
-            ./scripts/build-strongswan.sh dist/extras
+            ./scripts/build-swanmon.sh dist/extras
       - name: Remove publisher signing key
         if: ${{ always() }}
         run: rm -f /tmp/openwrt-feed-signing.pem
@@ -75,16 +75,16 @@ jobs:
           set -- $FEED_EXTRAS
           tag=''
           for candidate; do
-            case "$candidate" in strongswan-*) tag="$candidate" ;; esac
+            case "$candidate" in swanmon-*) tag="$candidate" ;; esac
           done
-          test -n "$tag" || { echo 'FEED_EXTRAS names no strongswan release' >&2; exit 1; }
+          test -n "$tag" || { echo 'FEED_EXTRAS names no swanmon release' >&2; exit 1; }
           test -e "dist/extras/${tag}.apk" || {
             echo "the build does not match $tag" >&2
             exit 1
           }
           gh release view "$tag" >/dev/null 2>&1 ||
             gh release create "$tag" --title "$tag" \
-              --notes "strongSwan built for OpenWrt ${FEED_OPENWRT_VERSION} until its release feed carries the fix for CVE-2026-47895."
+              --notes "swanmon built for OpenWrt ${FEED_OPENWRT_VERSION} until its release feed waits for the answer to the event unregistration."
           gh release upload "$tag" dist/extras/*.apk dist/extras/SHA256SUMS --clobber
       - name: Rebuild the feed
         env:

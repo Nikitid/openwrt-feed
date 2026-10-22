@@ -28,27 +28,24 @@ index stale.
 
 ## Packages built here
 
-While the release feed lacks a security fix, this repository builds the
-upstream package itself with the pinned SDK and signs it with the publisher
-key. `scripts/build-strongswan.sh` takes the release's own strongSwan recipe,
-whose init scripts and package split installed routers already run, and
-changes only the upstream version, its source hash and the three patches,
-fetched refreshed for 6.0.7 from a pinned commit of the development branch and
-checked by hash. The development branch's recipe itself is not used: it puts
-`eap-mschapv2` behind an "insecure" option and rewrites the init script's UCI
-schema. Every package of the recipe is built, as the release feed builds it,
-so a router with more strongSwan plugins than IKEv2 Manager installs upgrades
-them with the rest. The build takes about half an hour: the libraries the
-plugins need are compiled first.
+While the release feed lacks a fix, this repository builds the upstream package
+itself with the pinned SDK and signs it with the publisher key.
+`scripts/build-swanmon.sh` takes the release's own swanmon recipe and adds one
+patch, kept in `patches/swanmon` and checked by hash: swanmon waits until
+charon has answered the unregistration of its event before it disconnects.
+Without it every `swanmon list-sas` makes charon log "vici header write error:
+Broken pipe". The release is `r3`, above the release feed's `r2`; once the
+release feed carries the fix, remove the tag from `FEED_EXTRAS`, the script,
+the workflow and the release.
 
-The release is `r0`, below the `r1` the release feed would publish for the same
-version, so an official build replaces it as soon as one appears. Then remove
-the tag from `FEED_EXTRAS` and the release.
+The **Build swanmon** workflow is run by hand. It publishes the package as the
+release of this repository named in `FEED_EXTRAS` and starts the feed build,
+which indexes every APK of every release listed there next to the member
+packages.
 
-The **Build strongSwan** workflow is run by hand. It publishes the packages as
-the release of this repository named in `FEED_EXTRAS` and starts the feed
-build, which indexes every APK of every release listed there next to the
-member packages.
+strongSwan 6.0.7 was built here the same way until the release feed carried
+it (6.0.7-r1); routers that installed this repository's 6.0.7-r0 upgrade to the
+official build.
 
 ## Layout
 
