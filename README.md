@@ -17,7 +17,8 @@ all applications.
 - only the named packages are installed and upgraded, never the whole router;
 - the index rebuilds itself whenever any application publishes a release;
 - swanmon for OpenWrt 25.12 that waits for charon's answer before it
-  disconnects, until the release feed carries the fix.
+  disconnects, and strongSwan 6.0.7 with the fix for CVE-2026-78127, until the
+  release feed carries them.
 
 ## Requirements
 

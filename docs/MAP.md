@@ -2,8 +2,8 @@
 
 The shared signed APK feed. It builds no application of its own: it collects
 released assets from the member repositories and publishes one signed index
-every router installs from. The one package it builds is an upstream one,
-swanmon, while the release feed lacks a fix.
+every router installs from. The packages it builds are upstream ones,
+swanmon and strongSwan, while the release feed lacks a fix.
 
 ## The shape of it
 
@@ -13,6 +13,8 @@ swanmon, while the release feed lacks a fix.
 | `scripts/fetch-members.sh` | pulls each member's released APK, and the packages of the releases in `FEED_EXTRAS` |
 | `scripts/build-swanmon.sh` | swanmon 0.1-r3, waiting for charon to answer its event unregistration |
 | `.github/workflows/build-swanmon.yml` | builds it by hand, publishes it as a release here, rebuilds the feed |
+| `scripts/build-strongswan.sh` | strongSwan 6.0.7-r2: the release recipe plus the fix for CVE-2026-78127 (`patches/strongswan`) |
+| `.github/workflows/build-strongswan.yml` | the same, by hand, for strongSwan |
 | `scripts/assemble-feed.sh` | builds and signs the index |
 | `scripts/verify-feed.sh` | proves the published index is installable |
 | `scripts/check-feed.sh` | validates the member list before a build |

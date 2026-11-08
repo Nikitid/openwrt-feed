@@ -43,9 +43,14 @@ release of this repository named in `FEED_EXTRAS` and starts the feed build,
 which indexes every APK of every release listed there next to the member
 packages.
 
-strongSwan 6.0.7 was built here the same way until the release feed carried
-it (6.0.7-r1); routers that installed this repository's 6.0.7-r0 upgrade to the
-official build.
+`scripts/build-strongswan.sh` does the same for strongSwan 6.0.7: the release's
+own 6.0.7-r1 recipe plus the upstream fix for CVE-2026-78127 (memory leaked
+for each message logged before authentication), kept in `patches/strongswan`
+and checked by hash. The release is `r2`, above the release feed's `r1`; every
+package of the recipe is built so that the set on a router upgrades together.
+The **Build strongSwan** workflow is run by hand, like the other. Once the
+release feed carries the fix, remove the tag from `FEED_EXTRAS`, the script,
+the patch, the workflow and the release.
 
 ## Layout
 
